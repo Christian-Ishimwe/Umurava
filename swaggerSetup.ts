@@ -65,8 +65,6 @@ export const setupSwagger = (app: Application): void => {
 
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     swaggerOptions: {
-      url: "/docs-json",
-      presets: [swaggerUi.presets.apis, swaggerUi.SwaggerUIBundle.presets.configuration],
       persistAuthorization: true
     },
     customCss: `.swagger-ui .topbar { display: none }`

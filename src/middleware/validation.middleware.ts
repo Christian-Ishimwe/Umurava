@@ -43,9 +43,9 @@ export const validateEmail = (req: Request, res: Response, next: NextFunction) =
  */
 export const validateEnum = (field: string, validValues: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const value = req.body[field];
+    const value = req.body[field] ?? req.query[field];
 
-    if (value && !validValues.includes(value)) {
+    if (value && !validValues.includes(value as string)) {
       return res.status(400).json({
         message: "Validation Error",
         error: `Invalid value for ${field}. Must be one of: ${validValues.join(", ")}`

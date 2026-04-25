@@ -14,7 +14,7 @@ TalentRouter.get('/getTalents', getTalents);
 TalentRouter.post('/generateScoreForAll', validateRequiredFields(["jobDescriptionId"]), generateScoreForAllTalents);
 TalentRouter.delete('/deleteTalentsByJobDescription', validateRequiredFields(["jobDescriptionId"]), deleteTalentsByJobDescriptionController);
 TalentRouter.delete('/deleteTalent', validateRequiredFields(["talentId"]), deleteTheTalent);
-TalentRouter.get('/getTalentByStatus', validateEnum("status", ["Pending", "Screened", "Shortlisted", "Emailed", "Rejected"]), getTalentsByStatusController);
+TalentRouter.get('/getTalentByStatus', getTalentsByStatusController);
 TalentRouter.put('/updateTalentStatus', validateBodyNotEmpty, validateRequiredFields(["talentId", "status"]), validateEnum("status", ["Pending", "Screened", "Shortlisted", "Emailed", "Rejected"]), updateTalentStatusController);
 
 export default TalentRouter;
