@@ -5,11 +5,9 @@ import cors from "cors";
 import createError from "http-errors";
 import router from "./src/routes/routes";
 import { setupSwagger } from "./swaggerSetup";
-
-
+import { errorHandler, notFoundHandler } from "./src/middleware/errorHandler.middleware";
 
 const app = express();
-
 
 app.use(morgan("dev"));
 app.use(
@@ -26,17 +24,10 @@ app.use(cookieParser());
 setupSwagger(app);
 app.use('/api', router);
 
-app.use((req: Request, res: Response, next: NextFunction) => {
-  next(createError(404));
-});
+// Not found handler
+app.use(notFoundHandler);
 
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  res.status(err.status || 500);
-  res.json({
-    message: err.message,
-    error: process.env.NODE_ENV === "development" ? err : {},
-  });
-});
-
+// Error handling middleware (must be last)
+app.use(errorHandler);
 
 export default app;

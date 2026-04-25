@@ -21,6 +21,24 @@ export const TalentProfileSchema = new Schema(
       }
     ],
 
+    languages: [
+      {
+        name: String,
+        proficiency: {
+          type: String,
+          enum: ["Basic", "Conversational", "Fluent", "Native"]
+        }
+      }
+    ],
+
+    certifications: [
+      {
+        name: String,
+        issuer: String,
+        issueDate: String
+      }
+    ],
+
     experience: [
       {
         company: String,
@@ -49,7 +67,9 @@ export const TalentProfileSchema = new Schema(
         description: String,
         technologies: [String],
         role: String,
-        link: String
+        link: String,
+        startDate: String,
+        endDate: String
       }
     ],
 
@@ -61,7 +81,8 @@ export const TalentProfileSchema = new Schema(
       type: {
         type: String,
         enum: ["Full-time", "Part-time", "Contract"]
-      }
+      },
+      startDate: String
     },
 
     socialLinks: {

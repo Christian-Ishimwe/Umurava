@@ -12,6 +12,8 @@ export const saveTalentProfile = async (data: any) => {
         location: data.location,
 
         skills: data.skills,
+        languages: data.languages,
+        certifications: data.certifications,
         experience: data.experience,
         education: data.education,
         projects: data.projects,

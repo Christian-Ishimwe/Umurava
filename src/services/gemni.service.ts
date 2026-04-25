@@ -38,6 +38,19 @@ Schema:
       "yearsOfExperience": number
     }
   ],
+  "languages": [
+    {
+      "name": string,
+      "proficiency": "Basic" | "Conversational" | "Fluent" | "Native"
+    }
+  ],
+  "certifications": [
+    {
+      "name": string,
+      "issuer": string,
+      "issueDate": string
+    }
+  ],
   "experience": [
     {
       "company": string,
@@ -58,10 +71,21 @@ Schema:
       "endYear": number
     }
   ],
-  "projects": [],
+  "projects": [
+    {
+      "name": string,
+      "description": string,
+      "technologies": string[],
+      "role": string,
+      "link": string,
+      "startDate": string,
+      "endDate": string
+    }
+  ],
   "availability": {
     "status": "Available" | "Open to Opportunities" | "Not Available",
-    "type": "Full-time" | "Part-time" | "Contract"
+    "type": "Full-time" | "Part-time" | "Contract",
+    "startDate": string
   },
   "socialLinks": {
     "linkedin": string,

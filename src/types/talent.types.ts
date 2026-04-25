@@ -4,6 +4,17 @@ export interface Skill {
   yearsOfExperience: number;
 }
 
+export interface Language {
+  name: string;
+  proficiency: "Basic" | "Conversational" | "Fluent" | "Native";
+}
+
+export interface Certification {
+  name: string;
+  issuer: string;
+  issueDate: string;
+}
+
 export interface Experience {
   company: string;
   role: string;
@@ -28,6 +39,8 @@ export interface Project {
   technologies: string[];
   role: string;
   link: string;
+  startDate: string;
+  endDate: string;
 }
 export type TalentStatus =
   | "Pending"
@@ -43,12 +56,15 @@ export interface TalentProfileType {
   bio?: string;
   location: string;
   skills: Skill[];
+  languages?: Language[];
+  certifications?: Certification[];
   experience: Experience[];
   education: Education[];
   projects: Project[];
   availability: {
     status: "Available" | "Open to Opportunities" | "Not Available";
     type: "Full-time" | "Part-time" | "Contract";
+    startDate?: string;
   };
   socialLinks: {
     linkedin?: string;

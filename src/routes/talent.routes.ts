@@ -3,27 +3,426 @@ import { generateData } from "../controllers/generateDataFromResume.controller";
 import { uploadResumes } from "../services/multer.service";
 import { generateScoreForAllTalents, generateScoreForOneTalent } from "../controllers/generateScore.controller";
 import { deleteTheTalent, deleteTalentsByJobDescriptionController, getTalentInfo, getTalents, getTalentsByStatusController, updateTalentStatusController } from "../controllers/talentProfile.controller";
+import { validateRequiredFields, validateBodyNotEmpty, validateEnum } from "../middleware/validation.middleware";
 
 let TalentRouter = express.Router();
 
 TalentRouter.post("/getData", uploadResumes, generateData);
-TalentRouter.post('/generateScore', generateScoreForOneTalent);
-TalentRouter.get('/getTalentInfo', getTalentInfo);
+TalentRouter.post('/generateScore', validateBodyNotEmpty, validateRequiredFields(["talentId", "jobDescriptionId"]), generateScoreForOneTalent);
+TalentRouter.get('/getTalentInfo', validateRequiredFields(["talentId"]), getTalentInfo);
 TalentRouter.get('/getTalents', getTalents);
-TalentRouter.post('/generateScoreForAll', generateScoreForAllTalents);
-TalentRouter.delete('/deleteTalentsByJobDescription', deleteTalentsByJobDescriptionController);
-TalentRouter.delete('/deleteTalent', deleteTheTalent);
-TalentRouter.get('/getTalentByStatus',getTalentsByStatusController)
-TalentRouter.put('/updateTalentStatus',updateTalentStatusController)
+TalentRouter.post('/generateScoreForAll', validateRequiredFields(["jobDescriptionId"]), generateScoreForAllTalents);
+TalentRouter.delete('/deleteTalentsByJobDescription', validateRequiredFields(["jobDescriptionId"]), deleteTalentsByJobDescriptionController);
+TalentRouter.delete('/deleteTalent', validateRequiredFields(["talentId"]), deleteTheTalent);
+TalentRouter.get('/getTalentByStatus', validateEnum("status", ["Pending", "Screened", "Shortlisted", "Emailed", "Rejected"]), getTalentsByStatusController);
+TalentRouter.put('/updateTalentStatus', validateBodyNotEmpty, validateRequiredFields(["talentId", "status"]), validateEnum("status", ["Pending", "Screened", "Shortlisted", "Emailed", "Rejected"]), updateTalentStatusController);
 
 export default TalentRouter;
 
 /**
  * @openapi
+ * /api/talent/getData:
+ *   post:
+ *     tags:
+ *       - Talent
+ *     summary: Upload and parse resumes
+ *     description: Upload PDF, DOCX, or ZIP files containing resumes. AI parses them into structured talent profiles and saves them to MongoDB.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Resume files (PDF, DOCX, or ZIP)
+ *     responses:
+ *       200:
+ *         description: Resumes successfully parsed and saved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 saved:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       file:
+ *                         type: string
+ *                       profile:
+ *                         $ref: '#/components/schemas/TalentProfile'
+ *       400:
+ *         description: No files uploaded or invalid format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Server error during file processing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /api/talent/generateScore:
+ *   post:
+ *     tags:
+ *       - Talent
+ *     summary: Generate score for one talent
+ *     description: Score a single talent against a specific job description using AI evaluation
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - talentId
+ *               - jobDescriptionId
+ *             properties:
+ *               talentId:
+ *                 type: string
+ *                 description: MongoDB ObjectId of the talent
+ *               jobDescriptionId:
+ *                 type: string
+ *                 description: MongoDB ObjectId of the job description
+ *     responses:
+ *       200:
+ *         description: Talent scored successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 updatedScore:
+ *                   $ref: '#/components/schemas/TalentProfile'
+ *       400:
+ *         description: Validation error - missing required fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Talent or job description not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Server error during scoring
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /api/talent/getTalentInfo:
+ *   get:
+ *     tags:
+ *       - Talent
+ *     summary: Get talent information
+ *     description: Retrieve a specific talent profile by ID
+ *     parameters:
+ *       - in: query
+ *         name: talentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: MongoDB ObjectId of the talent
+ *     responses:
+ *       200:
+ *         description: Talent information retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 talentInfos:
+ *                   $ref: '#/components/schemas/TalentProfile'
+ *       400:
+ *         description: Validation error - talentId required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Talent not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /api/talent/getTalents:
+ *   get:
+ *     tags:
+ *       - Talent
+ *     summary: Get all talents ranked by score
+ *     description: Retrieve all talent profiles sorted by overall score in descending order
+ *     responses:
+ *       200:
+ *         description: Talents retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 talents:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/TalentProfile'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /api/talent/generateScoreForAll:
+ *   post:
+ *     tags:
+ *       - Talent
+ *     summary: Generate scores for all talents
+ *     description: Score all talents in the system against a specific job description
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - jobDescriptionId
+ *             properties:
+ *               jobDescriptionId:
+ *                 type: string
+ *                 description: MongoDB ObjectId of the job description
+ *     responses:
+ *       200:
+ *         description: All talents scored successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       talentId:
+ *                         type: string
+ *                       score:
+ *                         $ref: '#/components/schemas/TalentScore'
+ *       400:
+ *         description: Validation error - jobDescriptionId required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /api/talent/getTalentByStatus:
+ *   get:
+ *     tags:
+ *       - Talent
+ *     summary: Get talents filtered by status
+ *     description: Retrieve talents filtered by their current status (Pending, Screened, Shortlisted, Emailed, or Rejected)
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [Pending, Screened, Shortlisted, Emailed, Rejected]
+ *         description: Talent status to filter by
+ *     responses:
+ *       200:
+ *         description: Talents retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 talents:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/TalentProfile'
+ *       400:
+ *         description: Validation error - invalid status value
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /api/talent/updateTalentStatus:
+ *   put:
+ *     tags:
+ *       - Talent
+ *     summary: Update talent status
+ *     description: Update the status of a talent to reflect their stage in the screening process
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - talentId
+ *               - status
+ *             properties:
+ *               talentId:
+ *                 type: string
+ *                 description: MongoDB ObjectId of the talent
+ *               status:
+ *                 type: string
+ *                 enum: [Pending, Screened, Shortlisted, Emailed, Rejected]
+ *                 description: New status for the talent
+ *     responses:
+ *       200:
+ *         description: Status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 talent:
+ *                   $ref: '#/components/schemas/TalentProfile'
+ *       400:
+ *         description: Validation error - invalid status or missing fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Talent not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /api/talent/deleteTalent:
+ *   delete:
+ *     tags:
+ *       - Talent
+ *     summary: Delete a single talent
+ *     description: Delete a specific talent profile from the system
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - talentId
+ *             properties:
+ *               talentId:
+ *                 type: string
+ *                 description: MongoDB ObjectId of the talent to delete
+ *     responses:
+ *       200:
+ *         description: Talent deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Validation error - talentId required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Talent not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /api/talent/deleteTalentsByJobDescription:
+ *   delete:
+ *     tags:
+ *       - Talent
+ *     summary: Delete all talents for a job description
+ *     description: Delete all talents associated with a specific job description
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - jobDescriptionId
+ *             properties:
+ *               jobDescriptionId:
+ *                 type: string
+ *                 description: MongoDB ObjectId of the job description
+ *     responses:
+ *       200:
+ *         description: Talents deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Validation error - jobDescriptionId required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
  * components:
  *   schemas:
  *     Skill:
  *       type: object
+ *       required:
+ *         - name
  *       properties:
  *         name:
  *           type: string
@@ -34,7 +433,32 @@ export default TalentRouter;
  *           example: "Advanced"
  *         yearsOfExperience:
  *           type: number
- *           example: 3
+ *           example: 5
+ *
+ *     Language:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *           example: "English"
+ *         proficiency:
+ *           type: string
+ *           enum: [Basic, Conversational, Fluent, Native]
+ *           example: "Fluent"
+ *
+ *     Certification:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *           example: "AWS Certified Developer"
+ *         issuer:
+ *           type: string
+ *           example: "Amazon"
+ *         issueDate:
+ *           type: string
+ *           format: date
+ *           example: "2023-06-15"
  *
  *     Experience:
  *       type: object
@@ -47,18 +471,18 @@ export default TalentRouter;
  *           example: "Backend Developer"
  *         startDate:
  *           type: string
- *           example: "2021"
+ *           example: "2021-01"
  *         endDate:
  *           type: string
- *           example: "2024"
+ *           example: "2024-03"
  *         description:
  *           type: string
- *           example: "Built REST APIs and microservices."
+ *           example: "Built and maintained REST APIs"
  *         technologies:
  *           type: array
  *           items:
  *             type: string
- *           example: ["Node.js", "PostgreSQL"]
+ *           example: ["Node.js", "PostgreSQL", "Docker"]
  *         isCurrent:
  *           type: boolean
  *           example: false
@@ -71,7 +495,7 @@ export default TalentRouter;
  *           example: "University of Rwanda"
  *         degree:
  *           type: string
- *           example: "BSc"
+ *           example: "Bachelor's"
  *         fieldOfStudy:
  *           type: string
  *           example: "Computer Science"
@@ -90,36 +514,52 @@ export default TalentRouter;
  *           example: "Portfolio Website"
  *         description:
  *           type: string
- *           example: "Personal portfolio built with Next.js."
+ *           example: "Personal portfolio built with Next.js"
  *         technologies:
  *           type: array
  *           items:
  *             type: string
- *           example: ["Next.js", "Tailwind CSS"]
+ *           example: ["Next.js", "Tailwind CSS", "TypeScript"]
  *         role:
  *           type: string
  *           example: "Solo Developer"
  *         link:
  *           type: string
- *           example: "https://johndoe.dev"
+ *           example: "https://example.dev"
+ *         startDate:
+ *           type: string
+ *           example: "2023-01"
+ *         endDate:
+ *           type: string
+ *           example: "2023-06"
  *
  *     TalentScoreBreakdown:
  *       type: object
  *       properties:
  *         skills:
  *           type: number
+ *           minimum: 0
+ *           maximum: 100
  *           example: 85
  *         experience:
  *           type: number
+ *           minimum: 0
+ *           maximum: 100
  *           example: 78
  *         education:
  *           type: number
+ *           minimum: 0
+ *           maximum: 100
  *           example: 90
  *         projects:
  *           type: number
+ *           minimum: 0
+ *           maximum: 100
  *           example: 70
  *         profileCompleteness:
  *           type: number
+ *           minimum: 0
+ *           maximum: 100
  *           example: 95
  *
  *     TalentScore:
@@ -127,15 +567,22 @@ export default TalentRouter;
  *       properties:
  *         overallScore:
  *           type: number
+ *           minimum: 0
+ *           maximum: 100
  *           example: 82
  *         breakdown:
  *           $ref: '#/components/schemas/TalentScoreBreakdown'
  *         summary:
  *           type: string
- *           example: "Strong candidate with relevant backend experience."
+ *           example: "Strong candidate with relevant backend experience and proven project portfolio"
  *
  *     TalentProfile:
  *       type: object
+ *       required:
+ *         - firstName
+ *         - lastName
+ *         - email
+ *         - location
  *       properties:
  *         _id:
  *           type: string
@@ -152,10 +599,10 @@ export default TalentRouter;
  *           example: "john@example.com"
  *         headline:
  *           type: string
- *           example: "Full Stack Developer"
+ *           example: "Full Stack Developer with 5 years experience"
  *         bio:
  *           type: string
- *           example: "Experienced software engineer."
+ *           example: "Experienced software engineer passionate about building scalable systems"
  *         location:
  *           type: string
  *           example: "Kigali, Rwanda"
@@ -163,6 +610,14 @@ export default TalentRouter;
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/Skill'
+ *         languages:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Language'
+ *         certifications:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Certification'
  *         experience:
  *           type: array
  *           items:
@@ -186,6 +641,10 @@ export default TalentRouter;
  *               type: string
  *               enum: [Full-time, Part-time, Contract]
  *               example: "Full-time"
+ *             startDate:
+ *               type: string
+ *               format: date
+ *               example: "2024-05-01"
  *         socialLinks:
  *           type: object
  *           properties:
@@ -200,11 +659,14 @@ export default TalentRouter;
  *               example: "https://johndoe.dev"
  *         talentScore:
  *           $ref: '#/components/schemas/TalentScore'
+ *         status:
+ *           type: string
+ *           enum: [Pending, Screened, Shortlisted, Emailed, Rejected]
+ *           example: "Shortlisted"
  *         jobDescription:
  *           type: string
  *           nullable: true
- *           description: "MongoDB ObjectId referencing the JobDescription"
- *           example: "774g2b3c4d5e6f7a8b9c1e2f"
+ *           example: "664f1a2b3c4d5e6f7a8b9c0e"
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -217,314 +679,12 @@ export default TalentRouter;
  *       properties:
  *         message:
  *           type: string
- *           example: "An error occurred"
+ *           example: "Validation Error"
  *         error:
- *           type: object
- *           description: "Detailed error info (only in development mode)"
- */
-
-/**
- * @openapi
- * /api/talent/getData:
- *   post:
- *     tags:
- *       - Talent
- *     summary: Upload resumes and generate talent profiles
- *     description: |
- *       Accepts one or more resume files (PDF, DOCX, or ZIP), extracts their text,
- *       parses structured data using Gemini AI, and saves each as a talent profile.
- *
- *       **Constraints:**
- *       - Accepted formats: `.pdf`, `.docx`, and `.zip` only
- *       - Maximum of **20 files** per request
- *       - Field name must be `resumes`
- *     operationId: generateDataFromResumes
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required:
- *               - resumes
- *             properties:
- *               resumes:
- *                 type: array
- *                 items:
- *                   type: string
- *                   format: binary
- *                 minItems: 1
- *                 maxItems: 20
- *                 description: "PDF, DOCX, or ZIP resume files. Max 20 files."
- *     responses:
- *       200:
- *         description: Resumes parsed and talent profiles saved successfully.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 saved:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       file:
- *                         type: string
- *                         example: "john_doe_resume.pdf"
- *                       profile:
- *                         $ref: '#/components/schemas/TalentProfile'
- *       400:
- *         description: No files uploaded or unsupported file type.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       500:
- *         description: Server error during AI parsing or database save.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
-
-/**
- * @openapi
- * /api/talent/generateScore:
- *   post:
- *     tags:
- *       - Talent
- *     summary: Generate a match score for a talent against a job description
- *     description: |
- *       Uses Gemini AI to evaluate how well a talent profile matches a job description.
- *       The score and job description ID are saved to the talent's profile.
- *     operationId: generateScoreForOneTalent
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - talentId
- *               - jobDescriptionId
- *             properties:
- *               talentId:
- *                 type: string
- *                 example: "664f1a2b3c4d5e6f7a8b9c0d"
- *               jobDescriptionId:
- *                 type: string
- *                 example: "774g2b3c4d5e6f7a8b9c1e2f"
- *     responses:
- *       200:
- *         description: Score generated and saved successfully.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 updatedScore:
- *                   $ref: '#/components/schemas/TalentProfile'
- *       500:
- *         description: Server error.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
-
-/**
- * @openapi
- * /api/talent/generateScoreForAll:
- *   post:
- *     tags:
- *       - Talent
- *     summary: Generate match scores for all talents against a job description
- *     description: |
- *       Loops through every talent in the database and scores each one against
- *       the provided job description. Each talent's score and job description ID
- *       are saved to their profile.
- *
- *       **Note:** This may take a while depending on the number of talent profiles.
- *     operationId: generateScoreForAllTalents
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - jobDescriptionId
- *             properties:
- *               jobDescriptionId:
- *                 type: string
- *                 example: "774g2b3c4d5e6f7a8b9c1e2f"
- *     responses:
- *       200:
- *         description: Scores generated and saved for all talents.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 results:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       talentId:
- *                         type: string
- *                         example: "664f1a2b3c4d5e6f7a8b9c0d"
- *                       score:
- *                         $ref: '#/components/schemas/TalentScore'
- *       500:
- *         description: Server error.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
-
-/**
- * @openapi
- * /api/talent/getTalentInfo:
- *   get:
- *     tags:
- *       - Talent
- *     summary: Get a single talent profile by ID
- *     operationId: getTalentInfo
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - talentId
- *             properties:
- *               talentId:
- *                 type: string
- *                 example: "664f1a2b3c4d5e6f7a8b9c0d"
- *     responses:
- *       200:
- *         description: Talent profile retrieved successfully.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 talentInfos:
- *                   $ref: '#/components/schemas/TalentProfile'
- *       500:
- *         description: Server error.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
-
-/**
- * @openapi
- * /api/talent/getTalents:
- *   get:
- *     tags:
- *       - Talent
- *     summary: Get all talent profiles ranked by overall score
- *     description: Returns all talent profiles sorted by `talentScore.overallScore` descending.
- *     operationId: getTalents
- *     responses:
- *       200:
- *         description: Ranked list of talent profiles.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 talents:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/TalentProfile'
- *       500:
- *         description: Server error.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
-
-/**
- * @openapi
- * /api/talent/deleteTalent:
- *   delete:
- *     tags:
- *       - Talent
- *     summary: Delete a single talent profile
- *     operationId: deleteTalent
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - talentId
- *             properties:
- *               talentId:
- *                 type: string
- *                 example: "664f1a2b3c4d5e6f7a8b9c0d"
- *     responses:
- *       200:
- *         description: Talent deleted successfully.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 deletedTalent:
- *                   $ref: '#/components/schemas/TalentProfile'
- *       500:
- *         description: Server error.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
-
-/**
- * @openapi
- * /api/talent/deleteTalentsByJobDescription:
- *   delete:
- *     tags:
- *       - Talent
- *     summary: Delete all talents linked to a job description
- *     operationId: deleteTalentsByJobDescription
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - jobDescriptionId
- *             properties:
- *               jobDescriptionId:
- *                 type: string
- *                 example: "774g2b3c4d5e6f7a8b9c1e2f"
- *     responses:
- *       200:
- *         description: Talents deleted successfully.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "3 talent(s) deleted successfully"
- *       500:
- *         description: Server error.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *           type: string
+ *           example: "Missing required fields: talentId, status"
+ *         missingFields:
+ *           type: array
+ *           items:
+ *             type: string
  */
